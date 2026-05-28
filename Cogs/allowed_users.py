@@ -20,7 +20,7 @@ class AllowedUsersCog(commands.Cog):
     @app_commands.command(name="許可ユーザー追加", description="コマンドを使用できるユーザーを追加します（オーナー専用）")
     @app_commands.describe(user="追加するユーザー")
     @is_owner_check()
-    async def add_allowed_user(self, interaction: discord.Interaction, user: discord.Member):
+    async def add_allowed_user(self, interaction: discord.Interaction, user: discord.User):
         allowed = load_allowed_users()
 
         if user.id in allowed:
@@ -44,7 +44,7 @@ class AllowedUsersCog(commands.Cog):
     @app_commands.command(name="許可ユーザー削除", description="コマンドの使用許可を削除します（オーナー専用）")
     @app_commands.describe(user="削除するユーザー")
     @is_owner_check()
-    async def remove_allowed_user(self, interaction: discord.Interaction, user: discord.Member):
+    async def remove_allowed_user(self, interaction: discord.Interaction, user: discord.User):
         allowed = load_allowed_users()
 
         if user.id not in allowed:
