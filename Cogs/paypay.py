@@ -286,57 +286,40 @@ class PaypayCog(commands.Cog):
     @is_owner()
     @app_commands.describe(phone="電話番号", password="パスワード")
     async def paypay_register(self, interaction: discord.Interaction, phone: str, password: str):
-        # 最初に応答がないことを確認
-        if interaction.response.is_done():
-            await interaction.followup.send("処理を開始します...", ephemeral=True)
-        
-        # deferしてタイムアウトを防ぐ
-        try:
-            await interaction.response.defer(ephemeral=True)
-        except discord.InteractionResponded:
-            # 既に応答済みの場合はフォローアップを使用
-            pass
-        
+        await interaction.response.defer(ephemeral=True)
+
         set_uuid = str(uuid.uuid4())
         result = await paypayu.login(phone, password, set_uuid)
-        
+        print(f"PayPayログインレスポンス: {result}")
+
         if result.get("response_type") == "ErrorResponse":
             embed = discord.Embed(
                 title="PayPayログインエラー",
                 description="```ログイン情報とパスワードが一致していません。\n情報を正しく入力してください。```",
                 color=0xff3333
             )
-            try:
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            except:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
-        # OTP認証が必要な場合
+
         otpid = result.get("otp_reference_id")
         otp_pre = result.get("otp_prefix")
-        
-        if otpid and otp_pre:
-            # 元の応答を削除（存在する場合）
-            try:
-                await interaction.delete_original_response()
-            except:
-                pass
-            
-            # ボタン付きのビューを送信
-            view = OTPConfirmView(phone, password, set_uuid, otpid, otp_pre)
-            await interaction.followup.send(
-                "**OTP認証が必要です**\n\n"
-                "SMSに届いた4桁の認証コードを入力してください。\n"
-                "コードが届かない場合は、もう一度 `/paypayログイン` を実行してください。",
-                view=view,
-                ephemeral=True
+
+        if not otpid or not otp_pre:
+            embed = discord.Embed(
+                title="PayPayログインエラー",
+                description=f"```予期しないレスポンスが返されました。\n{result}```",
+                color=0xff3333
             )
-        else:
-            await interaction.followup.send(
-                "予期せぬエラーが発生しました。もう一度お試しください。",
-                ephemeral=True
-            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title="SMS認証",
+            description="SMSに届いた認証コードを入力するために、下のボタンを押してください。",
+            color=discord.Color.blue()
+        )
+        view = OTPConfirmView(phone, password, set_uuid, otpid, otp_pre)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name="paypay残高", description="PayPayの残高を確認します（オーナー専用）")
     @is_owner()
