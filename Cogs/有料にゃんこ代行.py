@@ -274,6 +274,14 @@ class _PayConfirmView(ui.View):
     async def open_modal(self, interaction: discord.Interaction):
         # ライセンス保持者は無料
         actual_total = 0 if _has_license(interaction.user.id) else self.total
+
+        # 0円の場合は決済不要 → 直接代行実行
+        if actual_total == 0:
+            await interaction.response.defer(ephemeral=True)
+            actions = await _execute_daiko(self.editor, self.selected)
+            await _send_daiko_result(interaction, self.editor, actions, actual_total)
+            return
+
         await interaction.response.send_modal(PayPayLinkModal(self.editor, self.selected, actual_total, interaction))
 
 
@@ -300,6 +308,12 @@ class PayPayLinkModal(ui.Modal, title="PayPay送金リンク入力"):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+
+        # 0円の場合は決済不要（通常はopen_modalでスキップ済みだが念のため）
+        if self.total == 0:
+            actions = await _execute_daiko(self.editor, self.selected)
+            await _send_daiko_result(interaction, self.editor, actions, self.total)
+            return
 
         if not PAYPAY_AVAILABLE:
             await interaction.followup.send(
